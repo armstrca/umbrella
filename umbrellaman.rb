@@ -1,5 +1,6 @@
 require "http"
 require "json"
+require "ascii_charts"
 pp "Where are you?"
 user_location = gets.chomp
 gmaps_key = ENV.fetch("GMAPS_KEY")
@@ -25,25 +26,41 @@ hourly = parsed_weather_data.fetch("hourly")
 next_hour_summary = hourly.fetch("summary")
 hourly_data_array = hourly.fetch("data")
 hourly_data_hash = hourly_data_array.at(0)
-first_hourly_precip = hourly_data_hash.fetch("precipProbability") 
+first_hourly_precip = hourly_data_hash.fetch("precipProbability")
 #twelvehour_array = hourly_data_array.at(0..11)#
 #twelvehour_precipprob_array = twelvehour_array.fetch("precipProbability")
 
-twelvehour_data_array = [hourly_data_array[0], hourly_data_array[1], hourly_data_array[2], hourly_data_array[3], hourly_data_array[4], hourly_data_array[5], hourly_data_array[6], hourly_data_array[7], hourly_data_array[8], hourly_data_array[9], hourly_data_array[10], hourly_data_array[11]]
-
+twelvehour_data_hash = hourly_data_array[1..12]
 
 
 pp "The current temperature in #{user_location} is #{current_temperature} degrees Fahrenheit."
 pp "The forecast for the next hour in #{user_location} is #{next_hour_summary}."
-pp "The precipitation probability for the next hour in #{user_location} is #{first_hourly_precip}%."
+pp "The precipitation probability for the next hour in #{user_location} is #{(first_hourly_precip*100).round}%."
+
+yesrainy = false
+precipprob_array = []  
+
+twelvehour_data_hash.each do |hourly|
+  precipprob = hourly.fetch("precipProbability")
+  precipprob_array << precipprob  
+
+  if precipprob > 0.1
+    yesrainy = true
+    precip_time = Time.at(hourly.fetch("time"))
+    
+    seconds_from_now = precip_time - Time.now
+    hours_from_now = seconds_from_now / 60 / 60
+    pp "In #{hours_from_now.round} hours, there is a #{(precipprob*100).round}% chance of precipitation."
+  end
+end
+
+if yesrainy
+  pp "You might want an umbrella today!"
+else
+  pp "You probably won't need an umbrella today."
+end
 
 
-12.times do |n|
-  hourly_data_hash = hourly_data_array.at(n)
-  n = hourly_data_hash.fetch("precipProbability") 
-  if n >= 0.1
-    pp "You might want an umbrella today!"
-  else
-    pp "You probably won't need an umbrella today."
-end
-end
+data = precipprob_array.map { |value| [1, value * 100] }
+chart = AsciiCharts::Cartesian.new(data, title: "Hourly Precipitation Probability")
+puts chart.draw
